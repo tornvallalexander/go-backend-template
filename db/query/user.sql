@@ -14,6 +14,13 @@ SELECT * FROM users
 WHERE username = $1
 LIMIT 1;
 
--- name: DeleteUser :exec
+-- name: ListUsers :many
+SELECT * FROM users
+ORDER BY username
+LIMIT $1
+OFFSET $2;
+
+-- name: DeleteUser :one
 DELETE FROM users
-WHERE username = $1;
+WHERE username = $1
+RETURNING *;
