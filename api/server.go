@@ -5,23 +5,26 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
 	db "github.com/tornvallalexander/go-backend-template/db/sqlc"
+	"github.com/tornvallalexander/go-backend-template/utils"
 	"net/http"
 )
 
 // Server serves HTTP requests
 type Server struct {
 	store  db.Store
+	config utils.Config
 	router *gin.Engine
 }
 
 // NewServer creates a new HTTP server with routing
-func NewServer(store db.Store) *Server {
+func NewServer(config utils.Config, store db.Store) (*Server, error) {
 	server := &Server{
-		store: store,
+		store:  store,
+		config: config,
 	}
 
 	server.setupRouter()
-	return server
+	return server, nil
 }
 
 func (server *Server) setupRouter() {
