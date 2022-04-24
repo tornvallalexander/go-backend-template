@@ -41,6 +41,9 @@ db_schema:
 server:
 	go run main.go
 
+mock:
+	mockgen -package mockdb -destination db/mock/store.go github.com/tornvallalexander/go-backend-template/db/sqlc Store
+
 # migrate create -ext sql -dir db/migration -seq init_schema
 
-.PHONY: postgres startdb stopdb createdb dropdb migrateup migratedown sqlc test db_docs db_schema server
+.PHONY: postgres startdb stopdb createdb dropdb migrateup migratedown sqlc test db_docs db_schema server mock
