@@ -16,8 +16,8 @@ type userResponse struct {
 	PasswordChangedAt time.Time `json:"password_changed_at"`
 }
 
-func newUserResponse(user db.User) *userResponse {
-	return &userResponse{
+func newUserResponse(user db.User) userResponse {
+	return userResponse{
 		Username:          user.Username,
 		Email:             user.Email,
 		CreatedAt:         user.CreatedAt,
@@ -25,9 +25,18 @@ func newUserResponse(user db.User) *userResponse {
 	}
 }
 
+func newUsersResponse(users []db.User) *[]userResponse {
+	var newUsers []userResponse
+	for i := range users {
+		newUsers = append(newUsers, newUserResponse(users[i]))
+	}
+
+	return &newUsers
+}
+
 type createUserRequest struct {
 	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Password string `json:"password" binding:"required,min=6,max=200"`
 	Email    string `json:"email" binding:"required,email"`
 }
 
@@ -79,6 +88,33 @@ func (server *Server) getUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, newUserResponse(user))
+}
+
+type listUsersRequest struct {
+	Limit  int32 `form:"limit" binding:"required,max=10,min=1"`
+	Offset int32 `form:"offset" binding:"required,max=20"`
+}
+
+func (server *Server) listUsers(ctx *gin.Context) {
+	var req listUsersRequest
+	if err := ctx.ShouldBindQuery(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	arg := db.ListUsersParams{
+		Limit:  req.Limit,
+		Offset: req.Offset,
+	}
+
+	users, err := server.store.ListUsers(context.Background(), arg)
+	if err != nil {
+		status, errRes := checkErr(err)
+		ctx.JSON(status, errRes)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, newUsersResponse(users))
 }
 
 type deleteUserRequest struct {
