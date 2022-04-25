@@ -2,9 +2,9 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	mockdb "github.com/tornvallalexander/go-backend-template/db/mock"
@@ -21,13 +21,13 @@ func TestGetUserAPI(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		body          gin.H
+		username      string
 		buildStubs    func(store *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
 		{
-			name: "OK",
-			body: gin.H{},
+			name:     "OK",
+			username: user.Username,
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
 					GetUser(gomock.Any(), gomock.Eq(user.Username)).
@@ -37,6 +37,19 @@ func TestGetUserAPI(t *testing.T) {
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 				requireBodyMatchUser(t, recorder.Body, user)
+			},
+		},
+		{
+			name:     "NotFound",
+			username: user.Username,
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().
+					GetUser(gomock.Any(), gomock.Eq(user.Username)).
+					Times(1).
+					Return(db.User{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
 			},
 		},
 	}
@@ -54,11 +67,8 @@ func TestGetUserAPI(t *testing.T) {
 			server := newTestServer(t, store)
 			recorder := httptest.NewRecorder()
 
-			data, err := json.Marshal(tc.body)
-			require.NoError(t, err)
-
-			url := fmt.Sprintf("/users/%s", user.Username)
-			request, err := http.NewRequest(http.MethodGet, url, bytes.NewReader(data))
+			url := fmt.Sprintf("/users/%s", tc.username)
+			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
 
 			server.router.ServeHTTP(recorder, request)
