@@ -33,6 +33,7 @@ func (server *Server) setupRouter() {
 	router.POST("/users/", server.createUser)
 	router.GET("/users/:username", server.getUser)
 	router.DELETE("/users/:username", server.deleteUser)
+	router.GET("/users/", server.listUsers)
 
 	server.router = router
 }
