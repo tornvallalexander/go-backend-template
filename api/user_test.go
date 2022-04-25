@@ -120,7 +120,7 @@ func TestCreateUserAPI(t *testing.T) {
 			},
 		},
 		{
-			name: "StatusBadRequest",
+			name: "BadRequest",
 			body: gin.H{},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
@@ -217,6 +217,80 @@ func TestCreateUserAPI(t *testing.T) {
 
 			url := fmt.Sprint("/users/")
 			request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+			require.NoError(t, err)
+
+			server.router.ServeHTTP(recorder, request)
+			tc.checkResponse(t, recorder)
+		})
+	}
+}
+
+func TestDeleteUser(t *testing.T) {
+	user, _ := randomUser(t)
+
+	testCases := []struct {
+		name          string
+		username      string
+		buildStubs    func(store *mockdb.MockStore)
+		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
+	}{
+		{
+			name:     "OK",
+			username: user.Username,
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().
+					DeleteUser(gomock.Any(), gomock.Eq(user.Username)).
+					Times(1).
+					Return(user, nil)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+				requireBodyMatchUser(t, recorder.Body, user)
+			},
+		},
+		{
+			name:     "NotFound",
+			username: utils.RandomPassword(13),
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().
+					DeleteUser(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(db.User{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNotFound, recorder.Code)
+			},
+		},
+		{
+			name:     "InternalServerError",
+			username: user.Username,
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().
+					DeleteUser(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(db.User{}, sql.ErrConnDone)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusInternalServerError, recorder.Code)
+			},
+		},
+	}
+
+	for i := range testCases {
+		tc := testCases[i]
+
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			store := mockdb.NewMockStore(ctrl)
+			tc.buildStubs(store)
+
+			server := newTestServer(t, store)
+			recorder := httptest.NewRecorder()
+
+			url := fmt.Sprintf("/users/%s", tc.username)
+			request, err := http.NewRequest(http.MethodDelete, url, nil)
 			require.NoError(t, err)
 
 			server.router.ServeHTTP(recorder, request)
