@@ -27,7 +27,7 @@ func newUserResponse(user db.User) *userResponse {
 
 type createUserRequest struct {
 	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Password string `json:"password" binding:"required,min=6,max=200"`
 	Email    string `json:"email" binding:"required,email"`
 }
 
