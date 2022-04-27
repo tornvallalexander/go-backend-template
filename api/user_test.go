@@ -15,8 +15,39 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
+
+type eqCreateUserParamsMatcher struct {
+	arg      db.CreateUserParams
+	password string
+}
+
+func (e eqCreateUserParamsMatcher) Matches(x interface{}) bool {
+	arg, ok := x.(db.CreateUserParams)
+	if !ok {
+		return false
+	}
+
+	if err := utils.CheckPassword(e.password, arg.HashedPassword); err != nil {
+		return false
+	}
+
+	e.arg.HashedPassword = arg.HashedPassword
+	return reflect.DeepEqual(e.arg, arg)
+}
+
+func (e eqCreateUserParamsMatcher) String() string {
+	return fmt.Sprintf("matched arg %v and password %v", e.arg, e.password)
+}
+
+func EqCreateUserParams(arg db.CreateUserParams, password string) gomock.Matcher {
+	return eqCreateUserParamsMatcher{
+		arg:      arg,
+		password: password,
+	}
+}
 
 func TestGetUserAPI(t *testing.T) {
 	user, _ := randomUser(t)
@@ -109,8 +140,13 @@ func TestCreateUserAPI(t *testing.T) {
 				"email":    user.Email,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
+				arg := db.CreateUserParams{
+					Username: user.Username,
+					Email:    user.Email,
+				}
+
 				store.EXPECT().
-					CreateUser(gomock.Any(), gomock.Any()).
+					CreateUser(gomock.Any(), EqCreateUserParams(arg, password)).
 					Times(1).
 					Return(user, nil)
 			},
@@ -151,6 +187,22 @@ func TestCreateUserAPI(t *testing.T) {
 			name: "TooLongPassword",
 			body: gin.H{
 				"username": user.Username,
+				"password": utils.RandomPassword(201), // limit is 200
+				"email":    user.Email,
+			},
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().
+					CreateUser(gomock.Any(), gomock.Any()).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+		{
+			name: "BadUsername",
+			body: gin.H{
+				"username": "******",
 				"password": utils.RandomPassword(201), // limit is 200
 				"email":    user.Email,
 			},
