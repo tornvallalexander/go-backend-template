@@ -65,29 +65,3 @@ func TestDeleteUser(t *testing.T) {
 	require.EqualError(t, err, sql.ErrNoRows.Error())
 	require.Empty(t, user2)
 }
-
-// Not entirely applicable in this case, but this is how we would
-// test a list functionality
-func TestListUsers(t *testing.T) {
-	// var lastUser User
-	for i := 0; i < 10; i++ {
-		// lastUser = createRandomUser(t)
-		createRandomUser(t)
-	}
-
-	arg := ListUsersParams{
-		Limit:  5,
-		Offset: 0,
-	}
-
-	users, err := testQueries.ListUsers(context.Background(), arg)
-	require.NoError(t, err)
-	require.NotEmpty(t, users)
-
-	/*
-		for _, user := range users {
-			require.NotEmpty(t, user)
-			require.Equal(t, user.Username, lastUser.Username)
-		}
-	*/
-}
