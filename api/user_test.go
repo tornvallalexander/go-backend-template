@@ -164,6 +164,22 @@ func TestCreateUserAPI(t *testing.T) {
 			},
 		},
 		{
+			name: "BadUsername",
+			body: gin.H{
+				"username": "******",
+				"password": utils.RandomPassword(201), // limit is 200
+				"email":    user.Email,
+			},
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().
+					CreateUser(gomock.Any(), gomock.Any()).
+					Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusBadRequest, recorder.Code)
+			},
+		},
+		{
 			name: "InternalServerError",
 			body: gin.H{
 				"username": user.Username,
