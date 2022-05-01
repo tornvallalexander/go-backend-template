@@ -2,25 +2,34 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
 	db "github.com/tornvallalexander/go-backend-template/db/sqlc"
+	"github.com/tornvallalexander/go-backend-template/token"
 	"github.com/tornvallalexander/go-backend-template/utils"
 	"net/http"
 )
 
 // Server serves HTTP requests
 type Server struct {
-	store  db.Store
-	config utils.Config
-	router *gin.Engine
+	store      db.Store
+	config     utils.Config
+	router     *gin.Engine
+	tokenMaker token.Maker
 }
 
 // NewServer creates a new HTTP server with routing
 func NewServer(config utils.Config, store db.Store) (*Server, error) {
+	tokenMaker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create token maker: %w", err)
+	}
+
 	server := &Server{
-		store:  store,
-		config: config,
+		store:      store,
+		config:     config,
+		tokenMaker: tokenMaker,
 	}
 
 	server.setupRouter()
